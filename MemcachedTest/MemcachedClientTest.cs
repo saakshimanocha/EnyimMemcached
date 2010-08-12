@@ -222,9 +222,9 @@ namespace MemcachedTest
 		}
 
 		[TestCase]
-		public void MultiGetTest()
+		public virtual void MultiGetTest()
 		{
-			
+
 
 			// note, this test will fail, if memcached version is < 1.2.4
 			using (var client = GetClient())

@@ -1,4 +1,5 @@
-﻿using System;
+﻿#define DISABLE_VBUCKET
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -111,23 +112,26 @@ namespace NorthScale.Store
 			IMemcachedNodeLocator locator;
 			IList<IMemcachedNode> nodes;
 
+#if !DISABLE_VBUCKET
 			if (config == null || config.vBucketServerMap == null)
 			{
-				// no vbucket config, use the node list and the ports
-				var portType = this.configuration.Port;
+#endif
+			// no vbucket config, use the node list and the ports
+			var portType = this.configuration.Port;
 
-				endpoints = config == null
-							? Enumerable.Empty<IPEndPoint>()
-							: (from node in config.nodes
-							   where node.status == "healthy"
-							   select new IPEndPoint(
-											IPAddress.Parse(node.hostname),
-											(portType == BucketPortType.Proxy
-												? node.ports.proxy
-												: node.ports.direct)));
+			endpoints = config == null
+						? Enumerable.Empty<IPEndPoint>()
+						: (from node in config.nodes
+						   where node.status == "healthy"
+						   select new IPEndPoint(
+										IPAddress.Parse(node.hostname),
+										(portType == BucketPortType.Proxy
+											? node.ports.proxy
+											: node.ports.direct)));
 
-				locator = this.configuration.CreateNodeLocator() ?? new KetamaNodeLocator();
-				nodes = endpoints.Select(ip => new MemcachedNode(ip, this.configuration.SocketPool, auth)).ToArray();
+			locator = this.configuration.CreateNodeLocator() ?? new KetamaNodeLocator();
+			nodes = endpoints.Select(ip => new MemcachedNode(ip, this.configuration.SocketPool, auth)).ToArray();
+#if !DISABLE_VBUCKET
 			}
 			else
 			{
@@ -149,7 +153,7 @@ namespace NorthScale.Store
 
 				nodes = endpoints.Select(ip => new MemcachedNode(ip, this.configuration.SocketPool, auth) { Bucket = Array.IndexOf(buckets, bucketNodeMap[ip].FirstOrDefault()) }).ToArray();
 			}
-
+#endif
 			locator.Initialize(nodes);
 
 			Interlocked.Exchange(ref this.currentNodes, new ReadOnlyCollection<IMemcachedNode>(nodes));
