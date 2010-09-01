@@ -296,9 +296,14 @@ namespace Enyim.Caching
 				}
 
 				var command = this.pool.OperationFactory.Store(mode, hashedKey, item, expires, cas);
+
+				if (log.IsDebugEnabled) log.DebugFormat("START Store '{0}' of '{1}'.", mode, key);
+
 				var retval = node.Execute(command);
 
 				cas = command.CasValue;
+
+				if (log.IsDebugEnabled) log.DebugFormat("END Store '{0}' of '{1}'. Result: '{2}'", mode, key, retval);
 
 				return retval;
 			}

@@ -1,9 +1,11 @@
 using System.Collections.Generic;
+using System.Text;
 
 namespace Enyim.Caching.Memcached.Protocol.Binary
 {
 	public class GetOperation : BinarySingleItemOperation, IGetOperation
 	{
+		private static readonly log4net.ILog log = log4net.LogManager.GetLogger(typeof(GetOperation));
 		private CacheItem result;
 
 		public GetOperation(string key) : base(key) { }
@@ -33,6 +35,9 @@ namespace Enyim.Caching.Memcached.Protocol.Binary
 			}
 
 			this.Cas = 0;
+
+			if (log.IsDebugEnabled)
+				log.DebugFormat("Get failed for key '{0}'. Reason: {1}", this.Key, Encoding.ASCII.GetString(response.Data.Array, response.Data.Offset, response.Data.Count));
 
 			return false;
 		}

@@ -1,9 +1,12 @@
 using System.Collections.Generic;
+using System.Text;
 
 namespace Enyim.Caching.Memcached.Protocol.Binary
 {
 	public class DeleteOperation : BinarySingleItemOperation, IDeleteOperation
 	{
+		private static readonly log4net.ILog log = log4net.LogManager.GetLogger(typeof(DeleteOperation));
+
 		public DeleteOperation(string key) : base(key) { }
 
 		protected override BinaryRequest Build()
@@ -22,6 +25,10 @@ namespace Enyim.Caching.Memcached.Protocol.Binary
 			var response = new BinaryResponse();
 			var retval = response.Read(socket);
 			this.Cas = response.CAS;
+
+			if (!retval)
+				if (log.IsDebugEnabled)
+					log.DebugFormat("Delete failed for key '{0}'. Reason: {1}", this.Key, Encoding.ASCII.GetString(response.Data.Array, response.Data.Offset, response.Data.Count));
 
 			return retval;
 		}
