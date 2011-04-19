@@ -757,6 +757,7 @@ namespace Enyim.Caching
 						using (iar.AsyncWaitHandle)
 							if (action.EndInvoke(iar))
 							{
+								#region monitoring
 								if (this.performanceMonitor != null)
 								{
 									// full list of keys sent to the server
@@ -773,6 +774,9 @@ namespace Enyim.Caching
 									if (resultCount != expectedCount)
 										this.performanceMonitor.Get(expectedCount - resultCount, true);
 								}
+								#endregion
+
+								var splitResult = new Dictionary<string, T>(mget.Result.Count);
 
 								// deserialize the items in the dictionary
 								foreach (var kvp in mget.Result)
@@ -784,9 +788,13 @@ namespace Enyim.Caching
 
 										// the lock will serialize the merge,
 										// but at least the commands were not waiting on each other
-										lock (retval) retval[original] = result;
+										splitResult[original] = result;
 									}
 								}
+
+								lock (retval)
+									foreach (var kvp in splitResult)
+										retval[kvp.Key] = kvp.Value;
 							}
 					}
 					catch (Exception e)
