@@ -242,10 +242,10 @@ namespace Membase
 		{
 			GC.SuppressFinalize(this);
 
-			if (this.state != null)
+			if (this.state != null && this.state != InternalState.Empty)
 				lock (this.DeadSync)
 				{
-					if (this.state != null)
+					if (this.state != null && this.state != InternalState.Empty)
 					{
 						var currentNodes = this.state.CurrentNodes;
 						this.state = null;
@@ -269,7 +269,7 @@ namespace Membase
 
 		private void rezCallback(object o)
 		{
-			if (this.state == null) return;
+			if (this.state == null || this.state == InternalState.Empty) return;
 
 			var isDebug = log.IsDebugEnabled;
 
@@ -291,7 +291,7 @@ namespace Membase
 			// 8. GOTO 2
 			lock (this.DeadSync)
 			{
-				if (this.state == null) return;
+				if (this.state == null || this.state == InternalState.Empty) return;
 
 				var currentState = this.state;
 				var nodes = currentState.CurrentNodes;
@@ -358,6 +358,10 @@ namespace Membase
 			lock (this.DeadSync)
 			{
 				var currentState = this.state;
+
+				// the pool has been already reinitialized by the time the node
+				// reported its failure, thus it has no connection to the current state
+				if (currentState == null || currentState == InternalState.Empty) return;
 
 				// we don't know who to reconfigure the pool when vbucket is
 				// enabled, so operations targeting the dead servers will fail.
