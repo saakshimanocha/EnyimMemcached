@@ -59,6 +59,7 @@ namespace Enyim.Caching.Memcached
 				if (Interlocked.CompareExchange(ref this.doingIO, 1, 0) != 0)
 					throw new InvalidOperationException("Receive is already in progress");
 #endif
+
 				this.expectedToRead = p.Count;
 				this.pendingArgs = p;
 
@@ -76,9 +77,7 @@ namespace Enyim.Caching.Memcached
 					this.remainingRead = count - this.asyncBuffer.Available;
 					this.isAborted = 0;
 
-					this.BeginReceive();
-
-					return true;
+					return this.BeginReceive(false);
 				}
 			}
 
@@ -87,7 +86,7 @@ namespace Enyim.Caching.Memcached
 				this.asyncBuffer.UnsafeClear();
 			}
 
-			private void BeginReceive()
+			private bool BeginReceive(bool wasAsync)
 			{
 				while (this.remainingRead > 0)
 				{
@@ -101,17 +100,19 @@ namespace Enyim.Caching.Memcached
 						if (!readInProgressEvent.WaitOne(this.socket.socket.ReceiveTimeout))
 							this.AbortReadAndTryPublishError(false);
 
-						return;
+						return true;
 					}
 
-					this.EndReceive();
+					if (!this.EndReceive(wasAsync)) break;
 				}
+
+				return wasAsync;
 			}
 
 			void AsyncReadCompleted(object sender, SocketAsyncEventArgs e)
 			{
-				if (this.EndReceive())
-					this.BeginReceive();
+				if (this.EndReceive(true))
+					this.BeginReceive(true);
 			}
 
 			private void AbortReadAndTryPublishError(bool markAsDead)
@@ -127,23 +128,24 @@ namespace Enyim.Caching.Memcached
 
 				this.remainingRead = 0;
 				var p = this.pendingArgs;
-
-#if DEBUG_IO
-				this.doingIO = 0;
-#endif
-				Thread.MemoryBarrier();
+				this.pendingArgs = null;
 
 				p.Fail = true;
 				p.Result = null;
 
-				this.pendingArgs.Next(p);
+				Thread.MemoryBarrier();
+#if DEBUG_IO
+				this.doingIO = 0;
+#endif
+
+				p.Next(p);
 			}
 
 			/// <summary>
-			/// returns true when io is pending
+			/// returns true when more data should be read
 			/// </summary>
 			/// <returns></returns>
-			private bool EndReceive()
+			private bool EndReceive(bool wasAsync)
 			{
 				this.readInProgressEvent.Set();
 
@@ -161,7 +163,7 @@ namespace Enyim.Caching.Memcached
 
 				if (this.remainingRead <= 0)
 				{
-					this.PublishResult(true);
+					this.PublishResult(wasAsync);
 
 					return false;
 				}
@@ -172,10 +174,17 @@ namespace Enyim.Caching.Memcached
 			private void PublishResult(bool isAsync)
 			{
 				var retval = this.pendingArgs;
+#if DEBUG
+				if (retval == null)
+					throw new InvalidOperationException("re-entered PublishResult!");
+#endif
+
+				this.pendingArgs = null;
 
 				var data = new byte[this.expectedToRead];
 				this.asyncBuffer.Read(data, 0, retval.Count);
-				pendingArgs.Result = data;
+				retval.Result = data;
+
 #if DEBUG_IO
 				this.doingIO = 0;
 #endif
@@ -183,7 +192,7 @@ namespace Enyim.Caching.Memcached
 				Thread.MemoryBarrier();
 
 				if (isAsync)
-					pendingArgs.Next(pendingArgs);
+					retval.Next(retval);
 			}
 		}
 	}

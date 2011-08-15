@@ -144,18 +144,21 @@ namespace Enyim.Caching.Memcached.Protocol.Binary
 			}
 			else
 			{
-				asyncEvent.Count = this.dataLength;
-				asyncEvent.Next = this.DoDecodeBodyAsync;
+				var asyncEvent2 = new AsyncIOArgs
+				{
+					Count = this.dataLength,
+					Next = this.DoDecodeBodyAsync
+				};
 
-				if (this.currentSocket.ReceiveAsync(asyncEvent))
+				if (this.currentSocket.ReceiveAsync(asyncEvent2))
 				{
 					pendingIO = true;
 				}
 				else
 				{
-					if (asyncEvent.Fail) return false;
+					if (asyncEvent2.Fail) return false;
 
-					this.DoDecodeBody(asyncEvent);
+					this.DoDecodeBody(asyncEvent2);
 				}
 			}
 

@@ -54,6 +54,9 @@ namespace Enyim.Caching
 		{
 			GC.SuppressFinalize(this);
 
+			// DEBUG
+			if (this.count > 0) throw new InvalidOperationException("Disposing an unfinished counter");
+
 			if (this.mre != null)
 			{
 				this.mre.Close();
