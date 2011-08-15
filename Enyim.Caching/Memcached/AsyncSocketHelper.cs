@@ -127,11 +127,11 @@ namespace Enyim.Caching.Memcached
 
 				this.remainingRead = 0;
 				var p = this.pendingArgs;
-#if DEBUG_IO
-				Thread.MemoryBarrier();
 
+#if DEBUG_IO
 				this.doingIO = 0;
 #endif
+				Thread.MemoryBarrier();
 
 				p.Fail = true;
 				p.Result = null;
@@ -177,9 +177,10 @@ namespace Enyim.Caching.Memcached
 				this.asyncBuffer.Read(data, 0, retval.Count);
 				pendingArgs.Result = data;
 #if DEBUG_IO
-				Thread.MemoryBarrier();
 				this.doingIO = 0;
 #endif
+
+				Thread.MemoryBarrier();
 
 				if (isAsync)
 					pendingArgs.Next(pendingArgs);
