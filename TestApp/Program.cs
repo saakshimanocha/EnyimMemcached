@@ -19,6 +19,41 @@ namespace DemoApp
 		{
 			log4net.Config.XmlConfigurator.Configure();
 
+			var emcc = new MemcachedClientConfiguration();
+			emcc.AddServer("localhost:11211");
+			emcc.AddServer("localhost:11212");
+			emcc.AddServer("localhost:11213");
+			emcc.AddServer("localhost:11214");
+
+			var client = new MemcachedClient(emcc);
+
+			var mre = new ManualResetEvent(false);
+			var keys = Enumerable.Range(0, 20).Select(i => "key_" + i).ToArray();
+
+			foreach (var k in keys)
+				client.Store(StoreMode.Set, k, new byte[65534]);
+
+			for (var i = 0; i < 4; i++)
+			{
+				ThreadPool.QueueUserWorkItem((o) =>
+				{
+					mre.WaitOne();
+
+					while (true)
+						client.Get(keys);
+				});
+			}
+
+			Console.WriteLine("Go?");
+			Console.ReadLine();
+
+			mre.Set();
+
+			Console.WriteLine("Enter to quit.");
+			Console.ReadLine();
+
+
+			/*
 
 			var mbcc = new MembaseClientConfiguration();
 
@@ -107,6 +142,7 @@ namespace DemoApp
 			//var stats2 = nc2.Stats();
 			//foreach (var kvp in stats2.GetRaw("curr_connections"))
 			//    Console.WriteLine("{0} -> {1}", kvp.Key, kvp.Value);
+			 * */
 		}
 
 		private static void MultigetSpeedTest()
